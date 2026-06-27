@@ -25,9 +25,10 @@ forward_ssh_keys:
 # lambda labs setup
 setup:
 	curl -LsSf https://astral.sh/uv/install.sh | sh \
-	cd ~/nebius-hw-us-east1 \
-	git clone git@github.com:wwymak/ai-perf-course-2026-mlops-assignment-3.git && \
-	cd ai-perf-course-2026-mlops-assignment-3 \
+	git config --global user.email "$(GIT_EMAIL)" \
+  	git config --global user.name "$(VM_USER)" \
+	git clone git@github.com:wwymak/ai-perf-2026-llm-detox-hw.git && \
+	cd ai-perf-2026-llm-detox-hw.git \
 	sudo apt-get update -y && \
 	sudo apt-get install -y nvidia-container-toolkit && \
 	sudo nvidia-ctk runtime configure --runtime=docker && \
