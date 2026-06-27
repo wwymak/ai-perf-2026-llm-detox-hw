@@ -8,11 +8,12 @@ rest of the file (``EVAL_SLICES``, ``detoxify_score``,
 The per-task scripts in ``tasks/`` import from this module and call the
 helpers.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Callable
 
+import numpy as np
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -75,6 +76,7 @@ def _load_rtp_challenging() -> list[str]:
     global _RTP_CHALLENGING
     if _RTP_CHALLENGING is None:
         from datasets import load_dataset
+
         ds = load_dataset("allenai/real-toxicity-prompts", split="train")
         ds = ds.filter(lambda r: r.get("challenging") is True)
         ds = ds.shuffle(seed=0).select(range(min(50, len(ds))))
@@ -84,9 +86,9 @@ def _load_rtp_challenging() -> list[str]:
 
 def get_eval_slices() -> dict[str, list[str]]:
     return {
-        "mild_prefix":         list(MILD_PREFIX),
-        "direct_provocation":  list(DIRECT_PROVOCATION),
-        "rtp_challenging":     _load_rtp_challenging(),
+        "mild_prefix": list(MILD_PREFIX),
+        "direct_provocation": list(DIRECT_PROVOCATION),
+        "rtp_challenging": _load_rtp_challenging(),
     }
 
 
@@ -94,16 +96,21 @@ def get_eval_slices() -> dict[str, list[str]]:
 # first access so unit tests / imports stay fast.
 class _LazySlices:
     _val: dict[str, list[str]] | None = None
+
     def _resolve(self) -> dict[str, list[str]]:
         if self._val is None:
             self._val = get_eval_slices()
         return self._val
+
     def __getitem__(self, k: str) -> list[str]:
         return self._resolve()[k]
+
     def items(self):
         return self._resolve().items()
+
     def keys(self):
         return self._resolve().keys()
+
     def values(self):
         return self._resolve().values()
 
@@ -123,6 +130,7 @@ def _get_detoxify():
     global _DETOXIFY
     if _DETOXIFY is None:
         from detoxify import Detoxify
+
         _DETOXIFY = Detoxify("original", device=DEVICE)
     return _DETOXIFY
 
@@ -159,9 +167,12 @@ def get_tokenizer():
 def _chat_text(prompt: str) -> str:
     tok = get_tokenizer()
     return tok.apply_chat_template(
-        [{"role": "system", "content": SYSTEM_PROMPT},
-         {"role": "user",   "content": prompt}],
-        tokenize=False, add_generation_prompt=True,
+        [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        tokenize=False,
+        add_generation_prompt=True,
     )
 
 
@@ -171,26 +182,34 @@ def greedy_generate(model, prompts: list[str], max_new_tokens: int = 64) -> list
     texts = [_chat_text(p) for p in prompts]
     enc = tok(texts, return_tensors="pt", padding=True).to(DEVICE)
     out = model.generate(
-        **enc, max_new_tokens=max_new_tokens, do_sample=False,
+        **enc,
+        max_new_tokens=max_new_tokens,
+        do_sample=False,
         pad_token_id=tok.eos_token_id,
     )
     decoded: list[str] = []
     for i in range(out.size(0)):
-        prompt_len = int(enc["attention_mask"][i].sum().item())
-        gen = out[i, enc["input_ids"].size(1):]
+        _prompt_len = int(enc["attention_mask"][i].sum().item())
+        gen = out[i, enc["input_ids"].size(1) :]
         decoded.append(tok.decode(gen, skip_special_tokens=True))
     return decoded
 
 
 @torch.no_grad()
-def sample_k(model, prompts: list[str], k: int = 16, max_new_tokens: int = 64) -> list[list[str]]:
+def sample_k(
+    model, prompts: list[str], k: int = 16, max_new_tokens: int = 64
+) -> list[list[str]]:
     """Return ``k`` sampled completions per prompt as a list of k-lists."""
     tok = get_tokenizer()
     texts = [_chat_text(p) for p in prompts]
     enc = tok(texts, return_tensors="pt", padding=True).to(DEVICE)
     out = model.generate(
-        **enc, max_new_tokens=max_new_tokens,
-        do_sample=True, temperature=1.0, top_p=0.95, top_k=50,
+        **enc,
+        max_new_tokens=max_new_tokens,
+        do_sample=True,
+        temperature=1.0,
+        top_p=0.95,
+        top_k=50,
         num_return_sequences=k,
         pad_token_id=tok.eos_token_id,
     )
@@ -214,8 +233,11 @@ def sample_k(model, prompts: list[str], k: int = 16, max_new_tokens: int = 64) -
 def load_adapter(adapter_dir: Path):
     """Load BASE + a single LoRA adapter (e.g. SFT or RM-from-base)."""
     from peft import PeftModel
+
     base = AutoModelForCausalLM.from_pretrained(
-        BASE_MODEL_NAME, dtype=torch.float32, device_map=DEVICE,
+        BASE_MODEL_NAME,
+        dtype=torch.float32,
+        device_map=DEVICE,
     )
     m = PeftModel.from_pretrained(base, str(adapter_dir))
     return m.merge_and_unload().eval()
@@ -224,8 +246,11 @@ def load_adapter(adapter_dir: Path):
 def load_dpo_from_sft(sft_dir: Path, dpo_dir: Path):
     """Load BASE + SFT-adapter merged + DPO-adapter merged."""
     from peft import PeftModel
+
     base = AutoModelForCausalLM.from_pretrained(
-        BASE_MODEL_NAME, dtype=torch.float32, device_map=DEVICE,
+        BASE_MODEL_NAME,
+        dtype=torch.float32,
+        device_map=DEVICE,
     )
     sft = PeftModel.from_pretrained(base, str(sft_dir)).merge_and_unload()
     dpo = PeftModel.from_pretrained(sft, str(dpo_dir))
@@ -235,7 +260,9 @@ def load_dpo_from_sft(sft_dir: Path, dpo_dir: Path):
 def load_merged_hf(model_dir: Path):
     """Load a regular HF model directory (e.g. merged PPO ckpt)."""
     return AutoModelForCausalLM.from_pretrained(
-        str(model_dir), dtype=torch.float32, device_map=DEVICE,
+        str(model_dir),
+        dtype=torch.float32,
+        device_map=DEVICE,
     ).eval()
 
 
@@ -278,7 +305,24 @@ def sampled_eval(
         "mean_std": float}}``.
     """
     # <YOUR CODE HERE>
-    raise NotImplementedError("Task 1: implement sampled_eval")
+    results = {}
+    for key, prompts in slices.items():
+        completions_per_prompt = sample_k(
+            model, prompts, k=k, detox_threshold=detox_threshold
+        )
+        per_prompt_scores = [detoxify_score(s) for s in completions_per_prompt]
+        max_toxicity = [max(score_list) for score_list in per_prompt_scores]
+        std_toxicity = [np.std(score_list) for score_list in per_prompt_scores]
+        support_toxicity = [
+            any(x > detox_threshold for x in score_list)
+            for score_list in per_prompt_scores
+        ]
+        results[key] = {
+            "support_rate": sum(support_toxicity) / len(support_toxicity),
+            "mean_max": float(np.mean(max_toxicity)),
+            "mean_std": float(np.mean(std_toxicity)),
+        }
+    return results
 
 
 # --------------------------------------------------------------------------- #
