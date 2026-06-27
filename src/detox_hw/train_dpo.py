@@ -200,11 +200,19 @@ def train(
             #   - ``chosen_r``  — shape ``(batch/2,)``, for the log line further down
             #   - ``rejected_r``— shape ``(batch/2,)``, same
             # <YOUR CODE HERE>
-            logp_policy = per_example_logps(pol_out, labels)
-            logp_ref = per_example_logps(ref_out, labels)
-            chosen_logp = logp_policy[::2, :]
-            rejected_logp = logp_ref[1::2, :]
-            dpo_losses, chosen_r, rejected_r = dpo_loss(chosen_logp, rejected_logp)
+            logp_policy = per_example_logps(pol_out.logits, labels)
+            logp_ref = per_example_logps(ref_out.logits, labels)
+            policy_chosen_logp = logp_policy[::2]
+            policy_rejected_logp = logp_policy[1::2]
+            ref_chosen_logp = logp_ref[::2]
+            ref_rejected_logp = logp_ref[1::2]
+            dpo_losses, chosen_r, rejected_r = dpo_loss(
+                policy_chosen_logp,
+                policy_rejected_logp,
+                ref_chosen_logp,
+                ref_rejected_logp,
+                beta=beta,
+            )
             loss = dpo_losses.mean()
             # ==================================================================
             (loss / grad_accum).backward()

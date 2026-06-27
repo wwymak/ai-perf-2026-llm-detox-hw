@@ -312,7 +312,7 @@ def sampled_eval(
         max_toxicity = [max(score_list) for score_list in per_prompt_scores]
         std_toxicity = [np.std(score_list) for score_list in per_prompt_scores]
         support_toxicity = [
-            any(x > detox_threshold for x in score_list)
+            any(x >= detox_threshold for x in score_list)
             for score_list in per_prompt_scores
         ]
         results[key] = {
@@ -354,7 +354,7 @@ def greedy_eval(
         per_prompt_scores = np.concatenate(
             [detoxify_score([s]) for s in completions_per_prompt]
         )
-        mean_toxicity = np.mean(per_prompt_scores)
+        mean_toxicity = float(np.mean(per_prompt_scores))
         results[key] = mean_toxicity
     return results
 
