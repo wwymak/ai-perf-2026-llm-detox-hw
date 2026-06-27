@@ -42,6 +42,7 @@ def main() -> None:
 
     model = load_adapter(Path(a.sft_dir))
     if a.eval_base_model:
+        print("evaluating base model!")
         model = model.get_base_model()
     slices = {
         name: EVAL_SLICES[name]
