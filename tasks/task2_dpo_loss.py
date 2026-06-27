@@ -18,10 +18,10 @@ The chosen/rejected rewards do NOT feed the optimiser — they're a
 logging signal: their margin should rise during training, and either
 drifting strongly negative is a known DPO-collapse leading indicator.
 """
+
 from __future__ import annotations
 
 import torch
-import torch.nn.functional as F
 
 
 def dpo_loss(
@@ -62,7 +62,16 @@ def dpo_loss(
         - ``rejected_rewards``: shape ``(batch,)`` — same on the rejected side.
     """
     # <YOUR CODE HERE>
-    raise NotImplementedError("Task 2: implement dpo_loss")
+    log_sigmoid = torch.nn.LogSigmoid()
+    accepted_term = policy_chosen_logps - reference_chosen_logps
+    rejected_term = policy_rejected_logps - reference_rejected_logps
+    loss_dpo = -log_sigmoid(beta * (accepted_term - rejected_term))
+    chosen_rewards = beta * (policy_chosen_logps - reference_chosen_logps).detach()
+    rejected_rewards = (
+        beta * (policy_rejected_logps - reference_rejected_logps).detach()
+    )
+    return loss_dpo, chosen_rewards, rejected_rewards
+
 
 # --------------------------------------------------------------------------- #
 # Self-check — run with: python -m tasks.task2_dpo_loss                       #
@@ -75,25 +84,32 @@ if __name__ == "__main__":
     #   chosen_r   = beta * (pcl - rcl).detach() = 0.1 * [ 1,  1,  1] = [0.1,  0.1, 0.1]
     #   rejected_r = beta * (prl - rrl).detach() = 0.1 * [-1, -1,  1] = [-0.1,-0.1, 0.1]
     torch.manual_seed(0)
-    pcl = torch.tensor([-12.0, -8.0,  -6.0])
+    pcl = torch.tensor([-12.0, -8.0, -6.0])
     prl = torch.tensor([-15.0, -7.0, -10.0])
-    rcl = torch.tensor([-13.0, -9.0,  -7.0])
+    rcl = torch.tensor([-13.0, -9.0, -7.0])
     rrl = torch.tensor([-14.0, -6.0, -11.0])
 
     losses, cr, rr = dpo_loss(pcl, prl, rcl, rrl, beta=0.1)
-    assert losses.shape == (3,) and cr.shape == (3,) and rr.shape == (3,), \
+    assert losses.shape == (3,) and cr.shape == (3,) and rr.shape == (3,), (
         f"shapes wrong: {losses.shape=}, {cr.shape=}, {rr.shape=}"
-    assert torch.allclose(cr, torch.tensor([ 0.1, 0.1, 0.1])), f"chosen_rewards wrong: {cr}"
-    assert torch.allclose(rr, torch.tensor([-0.1,-0.1, 0.1])), f"rejected_rewards wrong: {rr}"
+    )
+    assert torch.allclose(cr, torch.tensor([0.1, 0.1, 0.1])), (
+        f"chosen_rewards wrong: {cr}"
+    )
+    assert torch.allclose(rr, torch.tensor([-0.1, -0.1, 0.1])), (
+        f"rejected_rewards wrong: {rr}"
+    )
     expected_loss = torch.tensor([0.598139, 0.598139, 0.693147])
-    assert torch.allclose(losses, expected_loss, atol=1e-4), \
+    assert torch.allclose(losses, expected_loss, atol=1e-4), (
         f"loss wrong: got {losses}, expected {expected_loss}"
+    )
 
     # Rewards must NOT carry gradient (the optimiser only ever sees losses).
     pcl_g = torch.tensor([-12.0], requires_grad=True)
     prl_g = torch.tensor([-15.0], requires_grad=True)
-    _, cr_g, rr_g = dpo_loss(pcl_g, prl_g, torch.tensor([-13.0]),
-                             torch.tensor([-14.0]), beta=0.1)
+    _, cr_g, rr_g = dpo_loss(
+        pcl_g, prl_g, torch.tensor([-13.0]), torch.tensor([-14.0]), beta=0.1
+    )
     assert not cr_g.requires_grad, "chosen_rewards must be detached"
     assert not rr_g.requires_grad, "rejected_rewards must be detached"
 
