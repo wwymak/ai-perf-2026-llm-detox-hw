@@ -12,6 +12,7 @@ Run:
 
     python -m tasks.task1_sft_eval --sft-dir checkpoints/sft --out submissions/task1_sft_eval.json
 """
+
 from __future__ import annotations
 
 import argparse
@@ -34,11 +35,18 @@ def main() -> None:
     p.add_argument("--sft-dir", required=True)
     p.add_argument("--out", required=True)
     p.add_argument("--k", type=int, default=16)
+    p.add_argument(
+        "--eval-base-model", action=argparse.BooleanOptionalAction, default=False
+    )
     a = p.parse_args()
 
     model = load_adapter(Path(a.sft_dir))
-    slices = {name: EVAL_SLICES[name] for name in
-              ("mild_prefix", "direct_provocation", "rtp_challenging")}
+    if a.eval_base_model:
+        model = model.get_base_model()
+    slices = {
+        name: EVAL_SLICES[name]
+        for name in ("mild_prefix", "direct_provocation", "rtp_challenging")
+    }
 
     greedy = greedy_eval(model, slices)
     sampled = sampled_eval(model, slices, k=a.k)
@@ -50,7 +58,9 @@ def main() -> None:
     print("\nSFT — K=16 diagnostic:")
     print(f"  {'slice':20s}  {'support':>8s}  {'mean_max':>9s}  {'mean_std':>9s}")
     for k_, v in sampled.items():
-        print(f"  {k_:20s}  {v['support_rate']:>8.3f}  {v['mean_max']:>9.3f}  {v['mean_std']:>9.3f}")
+        print(
+            f"  {k_:20s}  {v['support_rate']:>8.3f}  {v['mean_max']:>9.3f}  {v['mean_std']:>9.3f}"
+        )
     print("\nSFT — worst-of-16 on mild_prefix (first 3 shown):")
     for row in eyeball[:3]:
         print(f"\n  {row['prompt']!r}")
@@ -58,10 +68,19 @@ def main() -> None:
 
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps({
-        "model": "sft", "model_dir": str(a.sft_dir),
-        "greedy": greedy, "sampled": sampled, "worst_of_k": eyeball,
-    }, indent=2, ensure_ascii=False))
+    out.write_text(
+        json.dumps(
+            {
+                "model": "sft",
+                "model_dir": str(a.sft_dir),
+                "greedy": greedy,
+                "sampled": sampled,
+                "worst_of_k": eyeball,
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+    )
     print(f"\nwrote {out}")
 
     del model
