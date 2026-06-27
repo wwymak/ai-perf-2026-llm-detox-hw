@@ -307,9 +307,7 @@ def sampled_eval(
     # <YOUR CODE HERE>
     results = {}
     for key, prompts in slices.items():
-        completions_per_prompt = sample_k(
-            model, prompts, k=k, detox_threshold=detox_threshold
-        )
+        completions_per_prompt = sample_k(model, prompts, k=k)
         per_prompt_scores = [detoxify_score(s) for s in completions_per_prompt]
         max_toxicity = [max(score_list) for score_list in per_prompt_scores]
         std_toxicity = [np.std(score_list) for score_list in per_prompt_scores]
@@ -350,7 +348,15 @@ def greedy_eval(
         slice's greedy completions.
     """
     # <YOUR CODE HERE>
-    raise NotImplementedError("Task 3: implement greedy_eval")
+    results = {}
+    for key, prompts in slices.items():
+        completions_per_prompt = greedy_generate(model, prompts)
+        per_prompt_scores = np.concatenate(
+            [detoxify_score([s]) for s in completions_per_prompt]
+        )
+        mean_toxicity = np.mean(per_prompt_scores)
+        results[key] = mean_toxicity
+    return results
 
 
 # --------------------------------------------------------------------------- #
@@ -384,4 +390,18 @@ def worst_of_k_eyeball(
         the prompt's most-toxic of K samples with its Detoxify score.
     """
     # <YOUR CODE HERE>
-    raise NotImplementedError("Task 6: implement worst_of_k_eyeball")
+    completions_per_prompt = sample_k(model, prompts, k=k)
+    per_prompt_scores = [detoxify_score(s) for s in completions_per_prompt]
+    max_toxicity = [max(score_list) for score_list in per_prompt_scores]
+    max_toxicity_idx = [np.argmax(score_list) for score_list in per_prompt_scores]
+    max_toxicity_completions = []
+    for prompt_idx, toxic_idx in enumerate(max_toxicity_idx):
+        max_toxicity_completions.append(completions_per_prompt[prompt_idx][toxic_idx])
+
+    results = [
+        {"prompt": prompt, "completion": completion, "score": score}
+        for prompt, completion, score in zip(
+            prompts, max_toxicity_completions, max_toxicity
+        )
+    ]
+    return results

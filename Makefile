@@ -39,6 +39,8 @@ setup:
 	source $UV_PROJECT_ENVIRONMENT/bin/activate \
 	uv pip install vllm --torch-backend=auto
 
+prepare_data:
+	uv run python -m data_prep.build_pairs --out-dir data --max-rows 80000
 
 run_vllm:
 	docker run --runtime nvidia --gpus all \
