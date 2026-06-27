@@ -22,6 +22,7 @@ drifting strongly negative is a known DPO-collapse leading indicator.
 from __future__ import annotations
 
 import torch
+from torch.nn import functional as F
 
 
 def dpo_loss(
@@ -62,10 +63,9 @@ def dpo_loss(
         - ``rejected_rewards``: shape ``(batch,)`` — same on the rejected side.
     """
     # <YOUR CODE HERE>
-    log_sigmoid = torch.nn.LogSigmoid()
     accepted_term = policy_chosen_logps - reference_chosen_logps
     rejected_term = policy_rejected_logps - reference_rejected_logps
-    loss_dpo = -log_sigmoid(beta * (accepted_term - rejected_term))
+    loss_dpo = -F.logsigmoid(beta * (accepted_term - rejected_term))
     chosen_rewards = beta * (policy_chosen_logps - reference_chosen_logps).detach()
     rejected_rewards = (
         beta * (policy_rejected_logps - reference_rejected_logps).detach()

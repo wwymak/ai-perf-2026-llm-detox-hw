@@ -5,11 +5,11 @@ LoRA-adapter-on-top-of-SFT policy. Each preference row becomes a pair
 of tokenised sequences (chosen and rejected). Loss is masked to the
 completion half so the DPO term sees only completion log-probs.
 """
+
 from __future__ import annotations
 
 import argparse
 import json
-import math
 from pathlib import Path
 
 import torch
@@ -19,7 +19,12 @@ from torch.utils.data import DataLoader, Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from src.common.io import read_jsonl
-from src.detox_hw.train_sft import IGNORE_INDEX, LORA_TARGETS_ALL, chat_prompt_ids, cosine_lr
+from src.detox_hw.train_sft import (
+    IGNORE_INDEX,
+    LORA_TARGETS_ALL,
+    chat_prompt_ids,
+    cosine_lr,
+)
 from tasks.task2_dpo_loss import dpo_loss
 
 
@@ -36,6 +41,7 @@ class DpoDataset(Dataset):
         self.items: list[dict] = []
         for p in pairs:
             prompt_ids = chat_prompt_ids(tokenizer, p["prompt"])
+
             def one_side(text: str) -> dict:
                 resp_ids = tokenizer(text, add_special_tokens=False)["input_ids"]
                 if tokenizer.eos_token_id is not None:
@@ -49,10 +55,13 @@ class DpoDataset(Dataset):
                     prompt_kept = len(prompt_ids)
                 labels = [IGNORE_INDEX] * prompt_kept + list(full[prompt_kept:])
                 return {"input_ids": full, "labels": labels}
-            self.items.append({
-                "chosen":   one_side(p["chosen"]),
-                "rejected": one_side(p["rejected"]),
-            })
+
+            self.items.append(
+                {
+                    "chosen": one_side(p["chosen"]),
+                    "rejected": one_side(p["rejected"]),
+                }
+            )
 
     def __len__(self) -> int:
         return len(self.items)
@@ -87,7 +96,7 @@ def per_example_logps(logits: torch.Tensor, labels: torch.Tensor) -> torch.Tenso
     shift_logits = logits[:, :-1, :]
     shift_labels = labels[:, 1:]
     log_probs = F.log_softmax(shift_logits, dim=-1)
-    mask = (shift_labels != IGNORE_INDEX)
+    mask = shift_labels != IGNORE_INDEX
     safe_labels = shift_labels.masked_fill(~mask, 0)
     gathered = log_probs.gather(-1, safe_labels.unsqueeze(-1)).squeeze(-1)
     gathered = gathered * mask.float()
@@ -113,7 +122,8 @@ def train(
     log_every: int = 50,
     seed: int = 0,
 ) -> None:
-    torch.manual_seed(seed); torch.cuda.manual_seed_all(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
     out_dir.mkdir(parents=True, exist_ok=True)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -123,7 +133,9 @@ def train(
 
     # Reference = SFT (no LoRA trainable on this copy).
     ref_base = AutoModelForCausalLM.from_pretrained(
-        base_name, dtype=torch.float32, device_map=device,
+        base_name,
+        dtype=torch.float32,
+        device_map=device,
     )
     reference = PeftModel.from_pretrained(ref_base, str(sft_dir))
     reference = reference.merge_and_unload().eval()
@@ -132,14 +144,18 @@ def train(
 
     # Policy = SFT + new LoRA adapter (trainable).
     pol_base = AutoModelForCausalLM.from_pretrained(
-        base_name, dtype=torch.float32, device_map=device,
+        base_name,
+        dtype=torch.float32,
+        device_map=device,
     )
     policy = PeftModel.from_pretrained(pol_base, str(sft_dir))
     policy = policy.merge_and_unload()
     lora_cfg = LoraConfig(
-        r=lora_r, lora_alpha=lora_r * 2,
+        r=lora_r,
+        lora_alpha=lora_r * 2,
         target_modules=list(LORA_TARGETS_ALL),
-        bias="none", task_type="CAUSAL_LM",
+        bias="none",
+        task_type="CAUSAL_LM",
     )
     policy = get_peft_model(policy, lora_cfg)
     policy.print_trainable_parameters()
@@ -147,7 +163,9 @@ def train(
 
     ds = DpoDataset(pairs, tokenizer)
     loader = DataLoader(
-        ds, batch_size=batch_size, shuffle=True,
+        ds,
+        batch_size=batch_size,
+        shuffle=True,
         collate_fn=lambda b: dpo_collate(b, tokenizer.pad_token_id),
         drop_last=True,
     )
@@ -182,9 +200,12 @@ def train(
             #   - ``chosen_r``  — shape ``(batch/2,)``, for the log line further down
             #   - ``rejected_r``— shape ``(batch/2,)``, same
             # <YOUR CODE HERE>
-            raise NotImplementedError(
-                "Task 2 (part 2): wire dpo_loss into the trainer"
-            )
+            logp_policy = per_example_logps(pol_out, labels)
+            logp_ref = per_example_logps(ref_out, labels)
+            chosen_logp = logp_policy[::2, :]
+            rejected_logp = logp_ref[1::2, :]
+            dpo_losses, chosen_r, rejected_r = dpo_loss(chosen_logp, rejected_logp)
+            loss = dpo_losses.mean()
             # ==================================================================
             (loss / grad_accum).backward()
             micro += 1
@@ -198,13 +219,19 @@ def train(
                 step += 1
                 if step % log_every == 0:
                     margin = (chosen_r - rejected_r).mean().item()
-                    print(json.dumps({
-                        "step": step, "of": total_steps,
-                        "loss": float(loss.item()),
-                        "chosen_r": float(chosen_r.mean().item()),
-                        "rejected_r": float(rejected_r.mean().item()),
-                        "margin": margin, "lr": cur_lr,
-                    }))
+                    print(
+                        json.dumps(
+                            {
+                                "step": step,
+                                "of": total_steps,
+                                "loss": float(loss.item()),
+                                "chosen_r": float(chosen_r.mean().item()),
+                                "rejected_r": float(rejected_r.mean().item()),
+                                "margin": margin,
+                                "lr": cur_lr,
+                            }
+                        )
+                    )
     policy.save_pretrained(str(out_dir))
     tokenizer.save_pretrained(str(out_dir))
     print(f"saved DPO adapter to {out_dir}")
@@ -212,7 +239,9 @@ def train(
 
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("--train", required=True, help="JSONL of {prompt, chosen, rejected} rows")
+    p.add_argument(
+        "--train", required=True, help="JSONL of {prompt, chosen, rejected} rows"
+    )
     p.add_argument("--sft-dir", required=True, help="path to SFT adapter")
     p.add_argument("--out", required=True)
     p.add_argument("--base", default="Qwen/Qwen2.5-0.5B")
@@ -225,9 +254,16 @@ def main() -> None:
     a = p.parse_args()
     pairs = list(read_jsonl(a.train))
     train(
-        pairs, Path(a.sft_dir), Path(a.out), base_name=a.base,
-        beta=a.beta, lr=a.lr, batch_size=a.batch_size,
-        grad_accum=a.grad_accum, epochs=a.epochs, lora_r=a.lora_r,
+        pairs,
+        Path(a.sft_dir),
+        Path(a.out),
+        base_name=a.base,
+        beta=a.beta,
+        lr=a.lr,
+        batch_size=a.batch_size,
+        grad_accum=a.grad_accum,
+        epochs=a.epochs,
+        lora_r=a.lora_r,
     )
 
 
