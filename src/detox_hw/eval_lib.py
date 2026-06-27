@@ -230,7 +230,7 @@ def sample_k(
 # --------------------------------------------------------------------------- #
 
 
-def load_adapter(adapter_dir: Path | None):
+def load_adapter(adapter_dir: Path | None = None):
     """Load BASE + a single LoRA adapter (e.g. SFT or RM-from-base)."""
     from peft import PeftModel
 
