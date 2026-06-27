@@ -230,7 +230,7 @@ def sample_k(
 # --------------------------------------------------------------------------- #
 
 
-def load_adapter(adapter_dir: Path):
+def load_adapter(adapter_dir: Path | None):
     """Load BASE + a single LoRA adapter (e.g. SFT or RM-from-base)."""
     from peft import PeftModel
 
@@ -239,6 +239,8 @@ def load_adapter(adapter_dir: Path):
         dtype=torch.float32,
         device_map=DEVICE,
     )
+    if not adapter_dir:
+        return base
     m = PeftModel.from_pretrained(base, str(adapter_dir))
     return m.merge_and_unload().eval()
 

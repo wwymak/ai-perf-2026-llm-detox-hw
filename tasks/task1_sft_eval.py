@@ -40,10 +40,12 @@ def main() -> None:
     )
     a = p.parse_args()
 
-    model = load_adapter(Path(a.sft_dir))
     if a.eval_base_model:
         print("evaluating base model!")
-        model = model.get_base_model()
+        model = load_adapter()
+    else:
+        model = load_adapter(Path(a.sft_dir))
+
     slices = {
         name: EVAL_SLICES[name]
         for name in ("mild_prefix", "direct_provocation", "rtp_challenging")
