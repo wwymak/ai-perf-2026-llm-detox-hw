@@ -12,7 +12,9 @@ dependencies = [
     "detoxify>=0.5",
     "torchao>=0.16",
     "scikit-learn",
-    "tqdm"
+    "tqdm",
+    "fasttext-langdetect>=1.1.1",
+    "sentence-transformers>=5.6.0",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -28,6 +30,7 @@ dev = [
     "pre-commit>=4.6.0",
     "pytest>=9.0.3",
     "pytest-asyncio>=1.4.0",
+    "ruff>=0.15.20",
 ]
 
 [tool.uv.sources]
