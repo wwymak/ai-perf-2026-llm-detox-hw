@@ -220,3 +220,6 @@ english, french, spanish, italian, portuguese, turkish, russian, the other langu
   ]
 }
 ```
+
+**Note, we are using the Qwen0.5B base model as specified by the requirements in the Readme for the 'proper' eval**, in
+modern llm post training PPO is usually done on top of a SFT trained model (the instruct versions)
