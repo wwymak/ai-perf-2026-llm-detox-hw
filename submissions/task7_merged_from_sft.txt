@@ -1,0 +1,9 @@
+total 976124
+drwxr-xr-x  2 root   root        4096 Jun 29 13:23 .
+drwxrwxr-x 12 wwymak wwymak      4096 Jun 29 13:23 ..
+-rw-r--r--  1 root   root        2427 Jun 29 13:23 chat_template.jinja
+-rw-r--r--  1 root   root        1305 Jun 29 13:23 config.json
+-rw-r--r--  1 root   root         138 Jun 29 13:23 generation_config.json
+-rw-r--r--  1 root   root   988097824 Jun 29 13:23 model.safetensors
+-rw-r--r--  1 root   root    11421892 Jun 29 13:23 tokenizer.json
+-rw-r--r--  1 root   root         696 Jun 29 13:23 tokenizer_config.json
