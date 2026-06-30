@@ -104,7 +104,7 @@ run_one() {
   sudo chmod 644 "${merged}/model.safetensors"
 
   # --- 3. Eval (greedy + K=16 diagnostic + worst-of-16) ---
-  python -m tasks.task7_ppo_rm_eval \
+  uv run python -m tasks.task7_ppo_rm_eval \
     --ppo-dir "${merged}" \
     --out "${eval_json}"
 
