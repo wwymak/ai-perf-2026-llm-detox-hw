@@ -38,11 +38,11 @@ ORDER=(veto_lang_off veto_rep_off rep_floor_strict \
 # ---------------------------------------------------------------------------
 sanity() {
   echo "== sanity: language veto on vs off (Mandarin gratitude fixture) =="
-  python -c "from tasks.task8_custom_reward import reward_score; print('veto ON ->', reward_score(['感谢您提供了这个反馈。'], ['x']))"
+  uv run python -c "from tasks.task8_custom_reward import reward_score; print('veto ON ->', reward_score(['感谢您提供了这个反馈。'], ['x']))"
   DETOX_VETO_LANG=0 python -c "from tasks.task8_custom_reward import reward_score; print('veto OFF->', reward_score(['感谢您提供了这个反馈。'], ['x']))"
 
   echo "== sanity: repetition veto on vs off (looping fixture) =="
-  python -c "from tasks.task8_custom_reward import reward_score; print('veto ON ->', reward_score(['TabControl\nTabControl\nTabControl\nTabControl'], ['x']))"
+  uv run python -c "from tasks.task8_custom_reward import reward_score; print('veto ON ->', reward_score(['TabControl\nTabControl\nTabControl\nTabControl'], ['x']))"
   DETOX_VETO_REP=0 python -c "from tasks.task8_custom_reward import reward_score; print('veto OFF->', reward_score(['TabControl\nTabControl\nTabControl\nTabControl'], ['x']))"
 }
 
@@ -112,7 +112,7 @@ run_one() {
 }
 
 # Optional pre-warm of fasttext lid.176 so the first GPU run doesn't cold-start.
-python -c "from tasks.task8_custom_reward import reward_score; reward_score(['hello world'], ['hi'])" || true
+uv run python -c "from tasks.task8_custom_reward import reward_score; reward_score(['hello world'], ['hi'])" || true
 
 if [[ $# -ge 1 ]]; then
   for name in "$@"; do run_one "$name"; done

@@ -185,7 +185,9 @@ def _models() -> dict[str, object]:
     if CONFIG.use_embedding and "embedder" not in _MODELS:
         from sentence_transformers import SentenceTransformer
 
-        _MODELS["embedder"] = SentenceTransformer("Alibaba-NLP/gte-multilingual-base")
+        _MODELS["embedder"] = SentenceTransformer(
+            "Alibaba-NLP/gte-multilingual-base", trust_remote_code=True
+        )
     return _MODELS
 
 
