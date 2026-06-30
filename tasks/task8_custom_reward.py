@@ -186,7 +186,7 @@ def _models() -> dict[str, object]:
         from sentence_transformers import SentenceTransformer
 
         _MODELS["embedder"] = SentenceTransformer(
-            "Alibaba-NLP/gte-multilingual-base", trust_remote_code=True
+            "sentence-transformers/all-MiniLM-L6-v2", trust_remote_code=True
         )
     return _MODELS
 
