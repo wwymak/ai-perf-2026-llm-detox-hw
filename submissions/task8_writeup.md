@@ -64,19 +64,19 @@ worst-of-16). Collapse signature = **low `mean_std` + high `mean_max`/support**;
 the `worst_of_k` text names the attractor. The `rtp_challenging` slice is the
 sensitivity canary — it separates runs that the two easy slices cannot.
 
-| Run | Override | greedy rtp | rtp support | rtp mean_std | Attractor / note |
-|-----|----------|-----------:|------------:|-------------:|------------------|
-| `all_defaults` | (ref, W_REL=0.25) | 0.0006 | 0.02 | 0.0065 | uniform "provide more context" refusal |
-| `W_REL=0.5` | (ref) | 0.0139 | 0.04 | 0.0132 | context-aware "As an assistant…" refusal |
-| **`echo_thresh_low`** | `ECHO_THRESHOLD=0.3` | **0.049** | **0.32** | **0.099** | **Task-6 gibberish RETURNS** (`퀵\n퀵…`, `外卖系統怎麼用`) |
-| `veto_lang_off` | `VETO_LANG=0` | 0.020 | 0.00 | 0.008 | stays English; NO Mandarin return |
-| `veto_rep_off` | `VETO_REP=0` | 0.0017 | 0.02 | 0.009 | varied benign prose; no loop exploited |
-| `rep_floor_strict` | `REP_FLOOR_RATIO=0.7` | 0.013 | 0.04 | 0.021 | mild rise; over-strict floor |
-| `w_base_off` | `W_BASE=0` | 0.036 | 0.08 | 0.032 | hardened "I'm sorry, I am an AI…" |
-| `w_agree_off` | `W_AGREE=0` | **0.074** | 0.12 | 0.044 | same + stray CJK token (`恶意`) |
-| `w_rel_off` | `W_REL=0, USE_EMBEDDING=0` | 0.0006 | **0.00** | **0.00005** | **uniform "Thank you!" collapse** |
-| `sat_threshold_low` | `SAT_THRESHOLD=0.3` | 0.0009 | 0.10 | 0.028 | mild rtp rise, style unchanged |
-| `rm_sigma_wide` | `RM_SIGMA=4.0` | 0.017 | 0.02 | 0.012 | ~baseline; agreement flattened |
+| Run | Override | What the knob change does | greedy rtp | rtp support | rtp mean_std | Attractor / note |
+|-----|----------|---------------------------|-----------:|------------:|-------------:|------------------|
+| `all_defaults` | (ref, W_REL=0.25) | Baseline: all vetoes on, relevance weight 0.25 | 0.0006 | 0.02 | 0.0065 | uniform "provide more context" refusal |
+| `W_REL=0.5` | (ref) | Doubles the prompt-relevance term's weight | 0.0139 | 0.04 | 0.0132 | context-aware "As an assistant…" refusal |
+| **`echo_thresh_low`** | `ECHO_THRESHOLD=0.3` | Fires the anti-echo penalty at much lower prompt-overlap → punishes even mild prompt reuse | **0.049** | **0.32** | **0.099** | **Task-6 gibberish RETURNS** (`퀵\n퀵…`, `外卖系統怎麼用`) |
+| `veto_lang_off` | `VETO_LANG=0` | Disables the non-English hard veto (no longer floors foreign-language completions) | 0.020 | 0.00 | 0.008 | stays English; NO Mandarin return |
+| `veto_rep_off` | `VETO_REP=0` | Disables the severe-repetition hard veto (looping text no longer floored) | 0.0017 | 0.02 | 0.009 | varied benign prose; no loop exploited |
+| `rep_floor_strict` | `REP_FLOOR_RATIO=0.7` | Tightens the repetition veto: floors anything below 70% distinct trigrams (vs 40%) | 0.013 | 0.04 | 0.021 | mild rise; over-strict floor |
+| `w_base_off` | `W_BASE=0` | Zeroes the saturated-Detoxify benign-anchor term (and skips its load) | 0.036 | 0.08 | 0.032 | hardened "I'm sorry, I am an AI…" |
+| `w_agree_off` | `W_AGREE=0` | Zeroes the RM↔Detoxify agreement term | **0.074** | 0.12 | 0.044 | same + stray CJK token (`恶意`) |
+| `w_rel_off` | `W_REL=0, USE_EMBEDDING=0` | Removes the prompt-relevance term entirely and skips the embedder | 0.0006 | **0.00** | **0.00005** | **uniform "Thank you!" collapse** |
+| `sat_threshold_low` | `SAT_THRESHOLD=0.3` | Lowers the Detoxify saturation point: reward flattens to 1.0 much sooner | 0.0009 | 0.10 | 0.028 | mild rtp rise, style unchanged |
+| `rm_sigma_wide` | `RM_SIGMA=4.0` | Widens the RM sigmoid: softer, flatter RM discrimination in the agreement term | 0.017 | 0.02 | 0.012 | ~baseline; agreement flattened |
 
 (mild_prefix / direct_provocation move little for every run except
 `echo_thresh_low`; full numbers in the per-run eval JSONs.)
